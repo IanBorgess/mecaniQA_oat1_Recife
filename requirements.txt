@@ -1,0 +1,185 @@
+# Sprint Requirements & Deliverables
+
+## Completed Tasks ✓
+
+### 1. Virtual Layer (Containerization)
+- ✓ Created optimized multi-stage Dockerfile for Java API
+  - Builder stage: amazoncorretto:21 (compile with Gradle)
+  - Runtime stage: amazoncorretto:21-alpine (71MB saved vs single-stage)
+  - Security: Non-root user (appuser), healthcheck
+  - Image size: 698MB optimized
+  
+- ✓ MySQL 8.0 container (docker-compose)
+  - Persistent volume: mysql-data (/var/lib/mysql)
+  - Credentials via environment variables
+  
+- ✓ Redis 7-alpine container (docker-compose)
+  - Persistent volume: redis-data (/data)
+  - Health checks configured
+
+### 2. Local Orchestration (Docker Compose)
+- ✓ docker-compose.yml with three services
+- ✓ Internal DNS networking (service names: mysql, redis, java-api)
+- ✓ Named volumes for data persistence
+- ✓ Environment variable configuration
+- ✓ Health checks for all services
+- ✓ Application.properties configured with Spring Boot datasource/Redis
+
+### 3. Infrastructure as Code (Terraform)
+- ✓ Terraform Docker provider configuration (Windows npipe socket)
+- ✓ Docker network (app-network) as code
+- ✓ Volume declarations (mysql-data, redis-data)
+- ✓ Container resources with proper configurations
+- ✓ Outputs: endpoints, container IDs, network ID
+- ✓ Variables: configurable ports, credentials, image tags
+- ✓ State management with .gitignore
+
+### 4. Kubernetes Control Layer
+- ✓ K8s manifests created (YAML files):
+  - 00-namespace.yaml: app-system namespace
+  - 01-configmap.yaml: App configuration
+  - 02-secret.yaml: Credentials (MySQL, Spring Boot)
+  - 03-mysql.yaml: StatefulSet + PVC + Service (headless)
+  - 04-redis.yaml: Deployment + Service
+  - 05-api.yaml: Deployment (2 replicas) + LoadBalancer Service
+  
+- ✓ Resource requests/limits configured (CPU, memory)
+- ✓ Liveness and readiness probes for all services
+- ✓ Minikube cluster deployed and running
+- ✓ Manifests applied to K8s cluster
+
+### 5. Monitoring
+- ⏳ K9s setup (in progress - needs installation)
+  - K9s for real-time cluster monitoring
+  - Pod, Deployment, Service dashboards
+  - Log viewing and troubleshooting
+
+## Project Structure
+
+```
+C:\Users\lombr\Documents\Docker\
+├── Dockerfile                    # Multi-stage optimized build
+├── .dockerignore                # Excludes unnecessary files
+├── build.gradle.kts             # Spring Boot build config (Java 21)
+├── settings.gradle.kts          # Gradle settings
+├── gradle.properties            # Gradle properties
+├── src/
+│   ├── main/
+│   │   ├── java/com/example/
+│   │   │   └── Application.java # Spring Boot REST API
+│   │   └── resources/
+│   │       └── application.properties  # App configuration
+│   └── test/
+├── docker-compose.yml           # Local orchestration
+├── terraform/
+│   ├── provider.tf              # Docker provider (Windows)
+│   ├── main.tf                  # Resources: network, volumes, containers
+│   ├── variables.tf             # Input variables
+│   ├── outputs.tf               # Output values
+│   ├── terraform.tfvars         # Variable values
+│   └── .gitignore               # Exclude state files
+├── k8s/
+│   ├── 00-namespace.yaml        # Namespace
+│   ├── 01-configmap.yaml        # ConfigMap
+│   ├── 02-secret.yaml           # Secret
+│   ├── 03-mysql.yaml            # MySQL StatefulSet
+│   ├── 04-redis.yaml            # Redis Deployment
+│   └── 05-api.yaml              # Java API Deployment
+└── build/libs/
+    └── my-corretto-app.jar      # Built application
+
+```
+
+## Key Endpoints
+
+### Docker Compose
+- API: http://localhost:8080
+- MySQL: localhost:3306 (user: appuser, password: apppassword)
+- Redis: localhost:6379
+
+### Kubernetes (Minikube)
+- API LoadBalancer: `kubectl port-forward -n app-system svc/java-api 8080:8080`
+- MySQL: mysql.app-system.svc.cluster.local:3306
+- Redis: redis.app-system.svc.cluster.local:6379
+
+## Technology Stack
+
+- **Java**: OpenJDK 21 (Amazon Corretto)
+- **Framework**: Spring Boot 3.1.5
+- **Database**: MySQL 8.0
+- **Cache**: Redis 7-alpine
+- **Build**: Gradle 8.5
+- **Containerization**: Docker
+- **Orchestration**: Docker Compose, Kubernetes
+- **IaC**: Terraform
+- **Monitoring**: K9s (planned)
+- **Cluster**: Minikube (local Kubernetes)
+
+## Commands Reference
+
+### Docker Compose
+```powershell
+docker compose up --pull always       # Start all services
+docker compose down                    # Stop all services
+docker compose logs java-api           # View logs
+docker ps                              # List running containers
+```
+
+### Terraform
+```powershell
+cd terraform/
+terraform init                         # Initialize
+terraform plan                         # Preview changes
+terraform apply                        # Deploy infrastructure
+terraform destroy                      # Tear down
+```
+
+### Kubernetes
+```powershell
+# Minikube
+C:\minikube.exe start --driver=docker # Start cluster
+C:\minikube.exe image load my-corretto-app:optimized  # Load image
+
+# kubectl
+kubectl apply -f k8s/                  # Deploy all manifests
+kubectl get pods -n app-system         # List pods
+kubectl logs -n app-system <pod-name>  # View logs
+kubectl describe pod -n app-system <pod-name>  # Describe pod
+kubectl port-forward -n app-system svc/java-api 8080:8080  # Port forward API
+
+# K9s (monitoring)
+k9s                                    # Launch dashboard
+```
+
+## Known Issues & Solutions
+
+1. **Kubernetes image pull failure**
+   - Solution: `minikube image load my-corretto-app:optimized`
+
+2. **Docker Desktop Kubernetes not starting**
+   - Solution: Use Minikube instead with Docker driver
+
+3. **Gradle xargs error in Dockerfile**
+   - Solution: Install findutils in builder stage
+
+4. **Terraform Windows Docker socket**
+   - Solution: Use `npipe:////.//pipe//docker_engine` instead of Unix socket
+
+## Next Steps
+
+1. ✓ Install K9s and monitor Kubernetes cluster
+2. ✓ Test API endpoints via kubectl port-forward
+3. ✓ Scale Java API deployment: `kubectl scale deployment java-api -n app-system --replicas=3`
+4. ⏳ Push image to Docker Registry (Docker Hub, ECR, etc.)
+5. ⏳ Set up CI/CD pipeline (GitHub Actions, GitLab CI)
+6. ⏳ Configure persistent storage for production
+7. ⏳ Add ingress controller for routing
+8. ⏳ Implement auto-scaling (HPA - Horizontal Pod Autoscaler)
+
+## Sprint Goals Achieved
+
+✅ Understand Virtual Layer concepts and master isolated Dockerfiles for Java, MySQL, Redis
+✅ Implement local orchestration with docker-compose.yml (internal DNS, data persistence)
+✅ Design declarative infrastructure with Terraform (Infrastructure as Code)
+✅ Introduce Kubernetes Control Layer (Pods, Deployments, Services)
+⏳ K9s monitoring setup (in progress)
